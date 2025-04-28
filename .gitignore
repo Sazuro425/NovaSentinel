@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environnements virtuels
+myenv/
+
+# Fichiers temporaires
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# Systèmes d'exploitation
+.DS_Store
+Thumbs.db
+
+# VS Code / VS Codium settings
+.vscode/
+
+# Fichiers Python cachés
+*.pyo
+*.pyd
+*.pyc
+
+# Tests ou caches
+.pytest_cache/
+.cache/
+.tox/
+
+# Dossiers de build
+build/
+dist/
+*.egg-info/
+
+# Ansible / Docker
+*.retry
