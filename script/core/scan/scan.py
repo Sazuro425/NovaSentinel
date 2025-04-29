@@ -2,7 +2,6 @@
 import dns.resolver
 from scapy.all import Ether, IP, UDP, BOOTP, DHCP, srp
 import socket
-
 print(socket.gethostbyname(socket.gethostname()))
 
 def get_dns():
@@ -10,6 +9,10 @@ def get_dns():
     resolver = dns.resolver.Resolver()
     print(resolver.nameservers)
 
+def list_interfaces():
+    interfaces = socket.if_nameindex()
+    for idx, name in interfaces:
+        print(f"{idx}: {name}")
 
 
 def send_dhcp_discover(interface="wlo1"):
@@ -34,5 +37,6 @@ def send_dhcp_discover(interface="wlo1"):
 
 if __name__ == "__main__":
     get_dns()
-    
+    list_interfaces()
+
     
