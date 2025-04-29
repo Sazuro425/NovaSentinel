@@ -1,42 +1,49 @@
 #!/usr/bin/env python3
-import dns.resolver
-from scapy.all import Ether, IP, UDP, BOOTP, DHCP, srp
 import socket
-print(socket.gethostbyname(socket.gethostname()))
+import dns.resolver
+import netifaces
 
-def get_dns():
-    """Function to get local DNS resolvers."""
+def get_default_ip():
+    """Retourne l'IP locale utilisée pour sortir vers Internet."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    finally:
+        s.close()
+
+def get_interface_by_ip(ip):
+    """Cherche le nom de l'interface correspondant à une IP."""
+    for iface in netifaces.interfaces():
+        addrs = netifaces.ifaddresses(iface).get(netifaces.AF_INET, [])
+        for addr in addrs:
+            if addr.get("addr") == ip:
+                return iface
+    return None
+
+def get_gateway():
+    """Récupère la passerelle par défaut IPv4."""
+    gws = netifaces.gateways().get("default", {})
+    gw = gws.get(netifaces.AF_INET)
+    return gw[0] if gw else None
+
+def get_dns_servers():
+    """Renvoie la liste des serveurs DNS configurés."""
     resolver = dns.resolver.Resolver()
-    print(resolver.nameservers)
+    return resolver.nameservers
 
-def list_interfaces():
-    interfaces = socket.if_nameindex()
-    for idx, name in interfaces:
-        print(f"{idx}: {name}")
+def main():
+    ip       = get_default_ip()
+    iface    = get_interface_by_ip(ip)
+    gateway  = get_gateway()
+    dns_list = get_dns_servers()
 
-
-def send_dhcp_discover(interface="wlo1"):
-    dhcp_discover = (
-        Ether(src=mac, dst="ff:ff:ff:ff:ff:ff") /
-        IP(src="0.0.0.0", dst="255.255.255.255") /
-        UDP(sport=68, dport=67) /
-        BOOTP(chaddr=bytes.fromhex(mac.replace(':', '')), xid=0x12345678) /
-        DHCP(options=[("message-type", "discover"), "end"])
-    )
-
-    ans, _ = srp(dhcp_discover, iface=interface, timeout=5, verbose=0)
-
-    for _, pkt in ans:
-        if pkt.haslayer(DHCP):
-            print(f"Réponse DHCP OFFER reçue de {pkt[IP].src}")
-            for opt in pkt[DHCP].options:
-                if isinstance(opt, tuple):
-                    print(f"{opt[0]}: {opt[1]}")
-
-
+    print(f"Interface  : {iface}")
+    print(f"Adresse IP : {ip}")
+    print(f"Passerelle : {gateway}")
+    print("DNS        :")
+    for dns in dns_list:
+        print(f"  - {dns}")
 
 if __name__ == "__main__":
-    get_dns()
-    list_interfaces()
-
-    
+    main()
