@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import logging
 import os
-import script.core.mydotenv
+from script.core.mydotenv import *
 print(os.getenv("level_log"))
 
 def get_custom_logger(name: str, level: int = os.getenv("level_log")) -> logging.Logger:
