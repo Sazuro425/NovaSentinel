@@ -2,7 +2,7 @@
 import socket
 import dns.resolver
 import netifaces
-
+from script.log.mylog import get_custom_logger
 def get_default_ip():
     """Retourne l'IP locale utilisée pour sortir vers Internet."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

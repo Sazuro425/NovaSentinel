@@ -2,9 +2,10 @@
 import logging
 import os
 from script.core.mydotenv import *
-print(os.getenv("level_log"))
 
-def get_custom_logger(name: str, level: int = os.getenv("level_log")) -> logging.Logger:
+
+
+def get_custom_logger(name: str, level: int = int(os.getenv("level_log"))) -> logging.Logger:
     """
     Crée et configure un logger indépendant, avec un FileHandler
     qui écrit dans '<name>.log', et désactive la propagation.
