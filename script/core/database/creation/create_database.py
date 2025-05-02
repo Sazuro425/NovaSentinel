@@ -59,7 +59,7 @@ def createdb():
     # Connexion à la base spécifique
     try:
         engine = create_engine(URL_INV, echo=False)
-        logger.info(f"Engine pour la base '{DB_NAME}' créé (URL: {URL_INV})")
+        logger.info(f"Engine pour la base '{DB_NAME}' créé")
         # Test de connexion
         with engine.begin() as conn_inv:
             logger.info(f"Connexion à la base '{DB_NAME}' réussie")
