@@ -1,40 +1,48 @@
-#!/usr/bin/env python3
-import logging
 import os
-from script.core.mydotenv import *
+import logging
 
+def get_custom_logger(name: str) -> logging.Logger:
+    # 1️⃣ Niveau de log configurable via LEVEL_LOG, par défaut INFO
+    lvl_str = os.getenv("LEVEL_LOG", "INFO").upper()
+    if hasattr(logging, lvl_str):
+        level = getattr(logging, lvl_str)
+    else:
+        try:
+            level = int(lvl_str)
+        except ValueError:
+            level = logging.INFO
 
-
-def get_custom_logger(name: str, level: int = int(os.getenv("level_log"))) -> logging.Logger:
-    """
-    Crée et configure un logger indépendant, avec un FileHandler
-    qui écrit dans '<name>.log', et désactive la propagation.
-    """
-    # 1. Récupère (ou crée) le logger
+    # Création du logger
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    # 2. Le logger ne remonte pas vers le root
     logger.propagate = False
 
-    # 3. Crée et configure le handler
-    handler = logging.FileHandler(f"{name}.log")
-    handler.setLevel(level)
-    formatter = logging.Formatter(
-        "%(asctime)s — %(name)s — %(levelname)s — %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
+    # Détermination de la racine du projet
+    #    __file__ ≃ .../NovaSentinel/core/log/mylog.py
+    project_root = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
     )
-    handler.setFormatter(formatter)
 
-    # 4. Ajoute le handler au logger
-    #    (vérifie d’abord qu’il n’y est pas déjà pour éviter les doublons)
-    if not any(isinstance(h, logging.FileHandler) and h.baseFilename.endswith(f"{name}.log")
-               for h in logger.handlers):
-        logger.addHandler(handler)
+    # 4réation du dossier 'log' à la racine si nécessaire
+    log_dir = os.path.join(project_root, "log")
+    os.makedirs(log_dir, exist_ok=True)
+
+    # hemin complet du fichier de log
+    log_path = os.path.join(log_dir, f"{name}.log")
+
+    # Ajout du FileHandler si pas déjà présent
+    if not any(
+        isinstance(h, logging.FileHandler) and os.path.abspath(h.baseFilename) == log_path
+        for h in logger.handlers
+    ):
+        fh = logging.FileHandler(log_path, encoding="utf-8")
+        fh.setLevel(level)
+        fh.setFormatter(
+            logging.Formatter(
+                "%(asctime)s — %(name)s — %(levelname)s — %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S"
+            )
+        )
+        logger.addHandler(fh)
 
     return logger
-
-def database_log():
-    """
-    LOG pour les scripts DATABASE
-    """
-    log = get_custom_logger("Database.log")
