@@ -53,7 +53,13 @@ class OpenPort(Base):
                      lambda m, c, t: logger.info(f"Port ouvert ajouté : {t.host_ip}:{t.port}"))
         event.listen(cls, 'after_delete',
                      lambda m, c, t: logger.info(f"Port ouvert supprimé : {t.host_ip}:{t.port}"))
-
+class local(Base):
+    __tablename__ = "local"
+    ip            = Column(String(15), primary_key=True)
+    mac           = Column(String(17), nullable=False)
+    dhcp          = Column(String(15), nullable=False)
+    dns           = Column(String(15), nullable=False)
+    interface     = Column(String(20), nullable=False)
 class Application(Base):
     __tablename__ = "application"
     id                  = Column(Integer, primary_key=True, autoincrement=True)
