@@ -14,7 +14,8 @@ setup(
         "scapy",
         "netifaces",
         "websockets",
-        "asyncio",       
+        "asyncio",
+        "python-nmap"       
     ],
     include_package_data=True,       
     python_requires=">=3.6",         
