@@ -11,7 +11,10 @@ setup(
     install_requires=[
         "python-dotenv",
         "dnspython",
-        "scapy",       
+        "scapy",
+        "netifaces",
+        "websockets",
+        "asyncio",       
     ],
     include_package_data=True,       
     python_requires=">=3.6",         

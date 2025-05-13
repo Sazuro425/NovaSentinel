@@ -16,6 +16,10 @@ import ipaddress
 from script.core.log.mylog import get_custom_logger
 from script.core.mydotenv import load_dotenv
 import netifaces
+import asyncio
+import websockets
+import json
+
 # Charger les variables d'environnement
 load_dotenv()
 
@@ -75,32 +79,28 @@ def get_dns_servers() -> list[str]:
         return []
 
 
-def get_dhcp_server(iface: str) -> str:
-    """Récupère le serveur DHCP en lisant le fichier de bail dhclient."""
-    lease_file = f"/var/lib/dhcp/dhclient.{iface}.leases"
-    dhcp_server = ""
+def get_dhcp_server_systemd() -> str:
+    """NEED TO BE REWORK"""
+    lease_dir = "/run/systemd/netif/leases"
     try:
-        if not os.path.exists(lease_file):
-            logger.warning(f"Fichier de bail DHCP introuvable : {lease_file}")
+        if not os.path.isdir(lease_dir):
+            logger.warning(f"Répertoire {lease_dir} introuvable ou non utilisé.")
             return ""
-        with open(lease_file, 'r') as f:
-            for line in f:
-                line = line.strip()
-                # Cherche l'option DHCP pour le serveur
-                if line.startswith('option dhcp-server-identifier'):
-                    # Format: option dhcp-server-identifier 192.168.1.1;
-                    parts = line.rstrip(';').split()
-                    if parts:
-                        dhcp_server = parts[-1]
-        if dhcp_server:
-            logger.info(f"Serveur DHCP pour {iface} : {dhcp_server}")
-        else:
-            logger.warning(f"Aucun serveur DHCP trouvé dans {lease_file}")
-        return dhcp_server
+        logger.info(f"Contenu du dossier {lease_dir} : {os.listdir(lease_dir)}")
+        for fname in os.listdir(lease_dir):
+            full_path = os.path.join(lease_dir, fname)
+            logger.info(f"Lecture du fichier : {full_path}")
+            with open(full_path, 'r') as f:
+                for line in f:
+                    logger.debug(f"Ligne : {line.strip()}")
+                    if line.startswith("SERVER_ADDRESS="):
+                        ip = line.split("=")[1].strip()
+                        logger.info(f"Serveur DHCP trouvé via systemd-networkd : {ip}")
+                        return ip
+        logger.warning("Aucune entrée SERVER_ADDRESS trouvée.")
     except Exception as e:
-        logger.error(f"Erreur lecture bail DHCP pour {iface} : {e}", exc_info=True)
-        return ""
-
+        logger.error(f"Erreur lecture lease systemd : {e}", exc_info=True)
+    return ""
 
 def ping_host(ip: str) -> bool:
     """Ping un hôte, retourne True s'il répond."""
@@ -135,27 +135,52 @@ def scan_network(ip: str, iface: str) -> list[str]:
         logger.error(f"Erreur durant le scan réseau : {e}", exc_info=True)
     return up_hosts
 
-
+async def send_data_to_server(uri: str, data: dict):
+    try:
+        async with websockets.connect(uri) as websocket:
+            await websocket.send(json.dumps(data))
+            logger.info("Données envoyées avec succès via WebSocket.")
+    except Exception as e:
+        logger.error(f"Erreur WebSocket : {e}", exc_info=True)
 def main():
     logger.info("=== Démarrage du Network Tool ===")
     ip = get_default_ip()
     iface = get_interface_by_ip(ip)
     gateway = get_gateway()
     dns_list = get_dns_servers()
-    dhcp = netifaces.gateways()
+    dhcp_server = get_dhcp_server_systemd()
     hosts_up = scan_network(ip, iface)
 
     # Affichage synthétique
     print(f"Interface   : {iface}")
     print(f"IP locale   : {ip}")
     print(f"Passerelle  : {gateway}")
-    print(f"Serveur DHCP: {dhcp}")
+    print(f"Serveur DHCP: {dhcp_server}")
     print("DNS servers :", ", ".join(dns_list))
     print("Hôtes actifs sur le réseau :")
     for h in hosts_up:
         print(h)
-    logger.info("=== Fin du Network Tool ===")
 
+    # Données à envoyer
+    data = {
+        "interface": iface,
+        "ip": ip,
+        "gateway": gateway,
+        "dns": dns_list,
+        "dhcp": dhcp_server,
+        "hosts_up": hosts_up
+    }
+
+    # Adresse de ton serveur WebSocket (local pour le test)
+    websocket_uri = "ws://localhost:8000"
+
+    # Envoi asynchrone
+    try:
+        asyncio.run(send_data_to_server(websocket_uri, data))
+    except Exception as e:
+        logger.error(f"Erreur lors de l'envoi des données WebSocket : {e}")
+
+    logger.info("=== Fin du Network Tool ===")
 
 if __name__ == "__main__":
     main()
