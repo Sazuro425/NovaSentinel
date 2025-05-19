@@ -174,7 +174,7 @@ def main():
         "nmap": nmap_results
     }
 
-    print(json.dumps(data, indent=2))
+    logger.info(json.dumps(data, indent=2))
     websocket_uri = "ws://localhost:8000"
     try:
         asyncio.run(send_data_to_server(websocket_uri, data))
