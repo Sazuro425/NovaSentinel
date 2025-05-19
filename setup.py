@@ -15,7 +15,9 @@ setup(
         "netifaces",
         "websockets",
         "asyncio",
-        "python-nmap"       
+        "python-nmap",
+        "requests",
+        "fpdf"       
     ],
     include_package_data=True,       
     python_requires=">=3.6",         
