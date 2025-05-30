@@ -158,24 +158,57 @@ def scan_network(ip: str, iface: str) -> list[str]:
 
 def search_cves(product: str, version: str) -> list[str]:
     """
-    Interroge l’API OpenCVE pour lister les CVEs associées à un produit/version.
+    Interroge l’API OpenCVE (/search) avec Basic Auth et pagination.
+    Retourne la liste complète des identifiants CVE pour le product/version donnés.
     """
-    if not OPENCVE_URL:
+    # Ne rien faire si la config OpenCVE est incomplète
+    if not OPENCVE_URL or not OPENCVE_USER or not OPENCVE_PASS:
         return []
-    try:
-        query = f"{product} {version}"
-        resp = session.get(
-            f"{OPENCVE_URL}/api/v1/search",
-            params={"q": query},
-            timeout=10
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        items = data.get("data", {}).get("cves", [])
-        return [item.get("cve") for item in items if item.get("cve")]
-    except Exception:
-        logger.exception(f"[search_cves] Erreur recherche CVEs pour {product} {version}")
-        return []
+
+    # Épurer les chaînes pour éviter les erreurs de matching
+    product = product.strip().lower().split()[0]
+    version = version.split()[0]
+    query   = f"{product} {version}"
+
+    all_cves  = []
+    page      = 1
+    page_size = 50
+
+    while True:
+        url    = f"{OPENCVE_URL}/search"
+        params = {
+            "q":         query,
+            "page":      page,
+            "page_size": page_size
+        }
+
+        try:
+            resp = session.get(url, params=params, timeout=10)
+            resp.raise_for_status()
+            data = resp.json().get("data", {})
+
+            # Extraire les CVE de la page courante
+            cves_page = [c["cve"] for c in data.get("cves", []) if c.get("cve")]
+            if not cves_page:
+                break
+
+            all_cves.extend(cves_page)
+
+            # Si on a reçu moins que page_size, on est à la fin
+            if len(cves_page) < page_size:
+                break
+
+            page += 1
+
+        except requests.HTTPError as e:
+            logger.warning(f"[search_cves] HTTP {resp.status_code} pour '{query}' → {e}")
+            break
+        except Exception:
+            logger.exception(f"[search_cves] Exception pour '{query}'")
+            break
+
+    return all_cves
+
 
 
 def scan_with_nmap(hosts: list[str]) -> list[dict]:
@@ -190,7 +223,7 @@ def scan_with_nmap(hosts: list[str]) -> list[dict]:
 
     try:
         nm = nmap.PortScanner()
-        targets = ",".join(hosts)
+        targets = " ".join(hosts)
         logger.info(f"[scan_with_nmap] Lancement Nmap sur : {targets}")
         nm.scan(
             hosts=targets,
