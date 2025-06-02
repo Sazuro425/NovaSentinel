@@ -27,16 +27,12 @@ from script.core.log.mylog import get_custom_logger
 # Charger les variables d'environnement
 load_dotenv()
 OPENCVE_URL   = os.getenv("OPENCVE_URL", "")     # URL de l’instance OpenCVE
-OPENCVE_API_KEY = os.getenv("OPENCVE_API_KEY")   # Facultatif : clé API OpenCVE
-WEBSOCKET_URI = os.getenv("WEBSOCKET_URI", "ws://localhost:8000")
+OPENCVE_USER = os.getenv("OPENCVE_USER")
+OPENCVE_PASS = os.getenv("OPENCVE_PASS")
+WEBSOCKET_URI = os.getenv("Manager", "ws://localhost:8000")
 PDF_OUTPUT    = os.getenv("PDF_OUTPUT_PATH", "network_report.pdf")
 
 logger = get_custom_logger("network_tool")
-
-# Configurer la session HTTP pour OpenCVE
-session = requests.Session()
-if OPENCVE_API_KEY:
-    session.headers.update({"Authorization": f"Bearer {OPENCVE_API_KEY}"})
 
 
 def get_default_ip() -> str:
@@ -156,65 +152,67 @@ def scan_network(ip: str, iface: str) -> list[str]:
     return up_hosts
 
 
-def search_cves(product: str, version: str) -> list[str]:
-    """
-    Interroge l’API OpenCVE (/search) avec Basic Auth et pagination.
-    Retourne la liste complète des identifiants CVE pour le product/version donnés.
-    """
-    # Ne rien faire si la config OpenCVE est incomplète
-    if not OPENCVE_URL or not OPENCVE_USER or not OPENCVE_PASS:
-        return []
+# def search_cves(product: str, version: str) -> list[str]:
+#     """
+#     Interroge l’API OpenCVE (/search) avec Basic Auth et pagination.
+#     Retourne la liste complète des identifiants CVE pour le product/version donnés.
+#     """
+#     # Ne rien faire si la config OpenCVE est incomplète
+#     if not OPENCVE_URL or not OPENCVE_USER or not OPENCVE_PASS:
+#         return []
+#     # Après import requests
+#     session = requests.Session()
+#     if OPENCVE_USER and OPENCVE_PASS:
+#         session.auth = (OPENCVE_USER, OPENCVE_PASS)
 
-    # Épurer les chaînes pour éviter les erreurs de matching
-    product = product.strip().lower().split()[0]
-    version = version.split()[0]
-    query   = f"{product} {version}"
+#     # Épurer les chaînes pour éviter les erreurs de matching
+#     product = product.strip().lower().split()[0]
+#     version = version.split()[0]
+#     query   = f"{product} {version}"
 
-    all_cves  = []
-    page      = 1
-    page_size = 50
+#     all_cves  = []
 
-    while True:
-        url    = f"{OPENCVE_URL}/search"
-        params = {
-            "q":         query,
-            "page":      page,
-            "page_size": page_size
-        }
+#     while True:
+#         url    = f"{OPENCVE_URL}/search"
+#         params = {
+#             "search":         query,
+#             "page":      page,
+#             "page_size": page_size
+#         }
 
-        try:
-            resp = session.get(url, params=params, timeout=10)
-            resp.raise_for_status()
-            data = resp.json().get("data", {})
+#         try:
+#             resp = session.get(url, params=params, timeout=10)
+#             resp.raise_for_status()
+#             data = resp.json().get("data", {})
 
-            # Extraire les CVE de la page courante
-            cves_page = [c["cve"] for c in data.get("cves", []) if c.get("cve")]
-            if not cves_page:
-                break
+#             # Extraire les CVE de la page courante
+#             cves_page = [c["cve"] for c in data.get("cves", []) if c.get("cve")]
+#             if not cves_page:
+#                 break
 
-            all_cves.extend(cves_page)
+#             all_cves.extend(cves_page)
 
-            # Si on a reçu moins que page_size, on est à la fin
-            if len(cves_page) < page_size:
-                break
+#             # Si on a reçu moins que page_size, on est à la fin
+#             if len(cves_page) < page_size:
+#                 break
 
-            page += 1
+#             page += 1
 
-        except requests.HTTPError as e:
-            logger.warning(f"[search_cves] HTTP {resp.status_code} pour '{query}' → {e}")
-            break
-        except Exception:
-            logger.exception(f"[search_cves] Exception pour '{query}'")
-            break
+#         except requests.HTTPError as e:
+#             logger.warning(f"[search_cves] HTTP {resp.status_code} pour '{query}' → {e}")
+#             break
+#         except Exception:
+#             logger.exception(f"[search_cves] Exception pour '{query}'")
+#             break
 
-    return all_cves
+#     return all_cves
 
 
 
 def scan_with_nmap(hosts: list[str]) -> list[dict]:
     """
     Scanne tous les hôtes en une seule passe Nmap (-sT, -sV, -Pn),
-    récupère services, versions et CVEs, et logge les infos pour débogage.
+    utilise le script NSE “vulners” pour récupérer les CVEs, et logge les infos pour débogage.
     """
     logger.info(f"[scan_with_nmap] Appelée avec hosts = {hosts!r}")
     if not hosts:
@@ -227,7 +225,7 @@ def scan_with_nmap(hosts: list[str]) -> list[dict]:
         logger.info(f"[scan_with_nmap] Lancement Nmap sur : {targets}")
         nm.scan(
             hosts=targets,
-            arguments='-sT -sV -Pn'
+            arguments='-sT -sV -Pn --script=vulners'
         )
 
         # Debug
@@ -242,13 +240,26 @@ def scan_with_nmap(hosts: list[str]) -> list[dict]:
                 for port in sorted(nm[host][proto].keys()):
                     serv = nm[host][proto][port]
                     prod, ver = serv.get("product"), serv.get("version")
+                    # Récupérer la sortie du script “vulners” s’il existe
+                    cve_list: list[str] = []
+                    script_outputs: dict = serv.get("script", {})
+                    vulners_output = script_outputs.get("vulners", "").splitlines()
+
+                    for line in vulners_output:
+                        # Chaque ligne contenant un CVE commence typiquement par "CVE-"
+                        txt = line.strip()
+                        if txt.startswith("CVE-"):
+                            # Extraire l’identifiant (premier token)
+                            cve_id = txt.split()[0]
+                            cve_list.append(cve_id)
+
                     svc = {
                         "port":    f"{port}/{proto}",
                         "service": serv.get("name"),
                         "product": prod,
                         "version": ver,
                         "info":    serv.get("extrainfo"),
-                        "cves":    search_cves(prod, ver) if prod and ver else []
+                        "cves":    cve_list
                     }
                     host_entry["services"].append(svc)
             results.append(host_entry)
@@ -260,54 +271,86 @@ def scan_with_nmap(hosts: list[str]) -> list[dict]:
         return []
 
 
+
 def generate_pdf_report(data: dict, filename: str):
     """
     Génère un rapport PDF à partir des données collectées.
-    Inclut interfaces, IP, passerelle, DNS, DHCP, hôtes up et résultats Nmap.
+    Inclut le logo Novasys en en-tête et adapte les couleurs des titres
+    pour s’accorder au bleu du logo.
+    Évite l’utilisation de caractères non Latin-1 pour ne pas provoquer d’UnicodeEncodeError.
     """
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    # Titre principal
-    pdf.set_font("Arial", "B", 16)
+    # --- Insérer le logo en haut à gauche ---
+    # Le fichier 'novasys_logo.png' doit se trouver dans le même dossier que ce script.
+    try:
+        pdf.image('novasys_logo.png', x=10, y=8, w=30)  # largeur 30 mm, hauteur ajustée
+    except Exception:
+        logger.warning("[generate_pdf_report] Impossible de charger le logo 'novasys_logo.png'")
+
+    # --- Titre principal (à droite du logo) ---
+    pdf.set_xy(50, 12)  # positionner le curseur à droite du logo
+    pdf.set_text_color(0, 51, 102)  # bleu foncé (approximation du bleu Novasys)
+    pdf.set_font("Arial", "B", 20)
     pdf.cell(0, 10, "Network Scan Report", ln=True, align="C")
     pdf.ln(5)
 
-    # Section infos réseau
+    # --- Section infos réseau ---
+    pdf.set_text_color(0, 0, 0)  # texte en noir
     pdf.set_font("Arial", "", 12)
     pdf.cell(0, 8, f"Interface: {data.get('interface')}", ln=True)
     pdf.cell(0, 8, f"Adresse IP: {data.get('ip')}", ln=True)
     pdf.cell(0, 8, f"Passerelle: {data.get('gateway')}", ln=True)
     pdf.cell(0, 8, f"DNS: {', '.join(data.get('dns', []))}", ln=True)
     pdf.cell(0, 8, f"DHCP: {data.get('dhcp')}", ln=True)
-    pdf.ln(5)
+    pdf.ln(8)
 
-    # Section hôtes ping
+    # --- Section hôtes ping ---
+    pdf.set_text_color(0, 102, 204)  # bleu moyen pour les sous-titres
     pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 8, "Hôtes actifs (ping):", ln=True)
+    pdf.cell(0, 8, "Hôtes actifs (ping) :", ln=True)
+    pdf.set_text_color(0, 0, 0)  # texte des hôtes en noir
     pdf.set_font("Arial", "", 12)
     for host in data.get('hosts_up', []):
         pdf.cell(0, 6, f"- {host}", ln=True)
-    pdf.ln(5)
+    pdf.ln(8)
 
-    # Section Nmap
+    # --- Section Nmap ---
+    pdf.set_text_color(0, 102, 204)  # bleu moyen pour cohérence
     pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 8, "Résultats Nmap:", ln=True)
+    pdf.cell(0, 8, "Résultats Nmap :", ln=True)
+    pdf.set_text_color(0, 0, 0)  # texte en noir
     pdf.set_font("Arial", "", 12)
+
     for host in data.get('nmap', []):
-        pdf.cell(0, 7, f"Hôte: {host.get('ip')}", ln=True)
+        pdf.set_font("Arial", "B", 12)
+        pdf.set_text_color(0, 51, 102)  # bleu foncé pour le nom de l'hôte
+        pdf.cell(0, 7, f"Hôte : {host.get('ip')}", ln=True)
+        pdf.set_font("Arial", "", 12)
+        pdf.set_text_color(0, 0, 0)  # texte en noir pour le détail
+
         for svc in host.get('services', []):
-            line = f"  {svc.get('port')}  {svc.get('service')}  {svc.get('product')}  {svc.get('version')}"
+            # Afficher port/service/product/version avec un tiret ASCII
+            line = f"  - {svc.get('port')}  {svc.get('service')}  {svc.get('product') or ''}  {svc.get('version') or ''}"
             pdf.multi_cell(0, 6, line)
+
+            # Si des CVE sont présentes, les afficher en italique et en rouge foncé
             cves = svc.get('cves', [])
             if cves:
-                pdf.multi_cell(0, 6, f"    CVEs: {', '.join(cves)}")
-        pdf.ln(2)
+                pdf.set_text_color(153, 0, 0)  # rouge foncé pour les CVE
+                pdf.set_font("Arial", "I", 11)
+                pdf.multi_cell(0, 6, f"    CVEs détectées : {', '.join(cves)}")
+                pdf.set_font("Arial", "", 12)
+                pdf.set_text_color(0, 0, 0)  # revenir au noir
 
+        pdf.ln(4)
+
+    # --- Générer le fichier PDF ---
     try:
         pdf.output(filename)
-        logger.info(f"[generate_pdf_report] Rapport PDF généré: {filename}")
+        logger.info(f"[generate_pdf_report] Rapport PDF généré : {filename}")
     except Exception:
         logger.exception("[generate_pdf_report] Erreur génération PDF")
 

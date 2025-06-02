@@ -2,19 +2,13 @@
 import asyncio
 import websockets
 import json
-
+from pprint import pprint
 async def handler(websocket):
     print("🔌 Nouveau client connecté")
     async for message in websocket:
         try:
             data = json.loads(message)
-            print("✅ Données reçues (dict) :")
-            print(f"  - Interface   : {data.get('interface')}")
-            print(f"  - IP locale   : {data.get('ip')}")
-            print(f"  - Passerelle  : {data.get('gateway')}")
-            print(f"  - DHCP server : {data.get('dhcp')}")
-            print(f"  - DNS         : {', '.join(data.get('dns', []))}")
-            print(f"  - Hôtes actifs: {', '.join(data.get('hosts_up', []))}")
+            pprint(data)
         except json.JSONDecodeError:
             print("❌ Erreur : données reçues non valides (JSON attendu)")
         except Exception as e:
