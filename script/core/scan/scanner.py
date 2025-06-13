@@ -11,18 +11,17 @@ Outil réseau complet :
 import os
 import socket
 import subprocess
-import multiprocessing
 import ipaddress
-import asyncio
 import json
 import netifaces
 import dns.resolver
 import nmap
 import requests
-import websockets
 from dotenv import load_dotenv
-from fpdf import FPDF
 from script.core.log.mylog import get_custom_logger
+from script.core.report.my_report import generate_html_report
+import multiprocessing
+from cve import format_cve_display
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -30,7 +29,7 @@ OPENCVE_URL   = os.getenv("OPENCVE_URL", "")     # URL de l’instance OpenCVE
 OPENCVE_USER = os.getenv("OPENCVE_USER")
 OPENCVE_PASS = os.getenv("OPENCVE_PASS")
 WEBSOCKET_URI = os.getenv("Manager", "ws://localhost:8000")
-PDF_OUTPUT    = os.getenv("PDF_OUTPUT_PATH", "network_report.pdf")
+HTML_OUTPUT = os.getenv("HTML_OUTPUT_PATH", "network_report.html")
 
 logger = get_custom_logger("network_tool")
 
@@ -92,6 +91,29 @@ def get_dns_servers() -> list[str]:
         logger.exception("[get_dns_servers] Erreur obtention serveurs DNS")
         return []
 
+import dns.reversename
+import dns.exception
+
+def reverse_dns(ip: str, nameservers: list[str] | None = None, timeout: float = 2.0) -> str:
+    """
+    Renvoie le nom DNS (PTR) de l’IP ou '' si introuvable.
+    nameservers : liste d’IP DNS à utiliser (sinon ceux du système).
+    """
+    try:
+        ptr = dns.reversename.from_address(ip)           # 106.1.168.192.in-addr.arpa
+        res = dns.resolver.Resolver()
+        if nameservers:
+            res.nameservers = nameservers
+        res.lifetime = timeout
+        answer = res.resolve(ptr, 'PTR')
+        return str(answer[0]).rstrip('.')
+    except (dns.resolver.NXDOMAIN,
+            dns.resolver.NoAnswer,
+            dns.resolver.NoNameservers,
+            dns.exception.Timeout,
+            Exception):
+        return ""
+
 
 def get_dhcp_server_systemd() -> str:
     """
@@ -151,62 +173,9 @@ def scan_network(ip: str, iface: str) -> list[str]:
         logger.exception("[scan_network] Erreur scan réseau")
     return up_hosts
 
-
-# def search_cves(product: str, version: str) -> list[str]:
-#     """
-#     Interroge l’API OpenCVE (/search) avec Basic Auth et pagination.
-#     Retourne la liste complète des identifiants CVE pour le product/version donnés.
-#     """
-#     # Ne rien faire si la config OpenCVE est incomplète
-#     if not OPENCVE_URL or not OPENCVE_USER or not OPENCVE_PASS:
-#         return []
-#     # Après import requests
-#     session = requests.Session()
-#     if OPENCVE_USER and OPENCVE_PASS:
-#         session.auth = (OPENCVE_USER, OPENCVE_PASS)
-
-#     # Épurer les chaînes pour éviter les erreurs de matching
-#     product = product.strip().lower().split()[0]
-#     version = version.split()[0]
-#     query   = f"{product} {version}"
-
-#     all_cves  = []
-
-#     while True:
-#         url    = f"{OPENCVE_URL}/search"
-#         params = {
-#             "search":         query,
-#             "page":      page,
-#             "page_size": page_size
-#         }
-
-#         try:
-#             resp = session.get(url, params=params, timeout=10)
-#             resp.raise_for_status()
-#             data = resp.json().get("data", {})
-
-#             # Extraire les CVE de la page courante
-#             cves_page = [c["cve"] for c in data.get("cves", []) if c.get("cve")]
-#             if not cves_page:
-#                 break
-
-#             all_cves.extend(cves_page)
-
-#             # Si on a reçu moins que page_size, on est à la fin
-#             if len(cves_page) < page_size:
-#                 break
-
-#             page += 1
-
-#         except requests.HTTPError as e:
-#             logger.warning(f"[search_cves] HTTP {resp.status_code} pour '{query}' → {e}")
-#             break
-#         except Exception:
-#             logger.exception(f"[search_cves] Exception pour '{query}'")
-#             break
-
-#     return all_cves
-
+# ---------------------------------------------------------------------------
+# Configuration (variables d'environnement ou définies ailleurs dans le code)
+# ---------------------------------------------------------------------------
 
 
 def scan_with_nmap(hosts: list[str]) -> list[dict]:
@@ -270,104 +239,41 @@ def scan_with_nmap(hosts: list[str]) -> list[dict]:
         logger.error(f"[scan_with_nmap] Erreur Nmap multi-hôtes : {e}")
         return []
 
-
-
-def generate_pdf_report(data: dict, filename: str):
+def discover_domain() -> dict:
     """
-    Génère un rapport PDF à partir des données collectées.
-    Inclut le logo Novasys en en-tête et adapte les couleurs des titres
-    pour s’accorder au bleu du logo.
-    Évite l’utilisation de caractères non Latin-1 pour ne pas provoquer d’UnicodeEncodeError.
+    Tente de découvrir le nom de domaine Active Directory via DNS SRV.
+    Essaie les suffixes DNS du système s’ils existent.
+    Renvoie un dict : {"domain": str, "controllers": [hostnames]}
     """
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
+    domain = ""
+    controllers = []
+    resolver = dns.resolver.Resolver()
 
-    # --- Insérer le logo en haut à gauche ---
-    # Le fichier 'novasys_logo.png' doit se trouver dans le même dossier que ce script.
+    # 1. Essayer d'utiliser le search domain du système (si défini)
+    search_domains = resolver.search if resolver.search else []
+    for suffix in search_domains:
+        try:
+            query = f"_ldap._tcp.dc._msdcs.{suffix.to_text()}"
+            answers = resolver.resolve(query, 'SRV')
+            domain = suffix.to_text()
+            controllers = [str(r.target).rstrip('.') for r in answers]
+            logger.info(f"[discover_domain] Domaine trouvé via DNS search : {domain}")
+            return {"domain": domain, "controllers": controllers}
+        except Exception:
+            continue  # On essaie les suivants
+
+    # 2. Tentative brute si aucun domaine connu
     try:
-        pdf.image('novasys_logo.png', x=10, y=8, w=30)  # largeur 30 mm, hauteur ajustée
+        answers = resolver.resolve("_ldap._tcp.dc._msdcs", 'SRV')
+        controllers = [str(r.target).rstrip('.') for r in answers]
+        logger.info("[discover_domain] Contrôleurs trouvés sans domaine explicite")
     except Exception:
-        logger.warning("[generate_pdf_report] Impossible de charger le logo 'novasys_logo.png'")
+        logger.warning("[discover_domain] Aucun domaine AD détecté")
 
-    # --- Titre principal (à droite du logo) ---
-    pdf.set_xy(50, 12)  # positionner le curseur à droite du logo
-    pdf.set_text_color(0, 51, 102)  # bleu foncé (approximation du bleu Novasys)
-    pdf.set_font("Arial", "B", 20)
-    pdf.cell(0, 10, "Network Scan Report", ln=True, align="C")
-    pdf.ln(5)
-
-    # --- Section infos réseau ---
-    pdf.set_text_color(0, 0, 0)  # texte en noir
-    pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 8, f"Interface: {data.get('interface')}", ln=True)
-    pdf.cell(0, 8, f"Adresse IP: {data.get('ip')}", ln=True)
-    pdf.cell(0, 8, f"Passerelle: {data.get('gateway')}", ln=True)
-    pdf.cell(0, 8, f"DNS: {', '.join(data.get('dns', []))}", ln=True)
-    pdf.cell(0, 8, f"DHCP: {data.get('dhcp')}", ln=True)
-    pdf.ln(8)
-
-    # --- Section hôtes ping ---
-    pdf.set_text_color(0, 102, 204)  # bleu moyen pour les sous-titres
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 8, "Hôtes actifs (ping) :", ln=True)
-    pdf.set_text_color(0, 0, 0)  # texte des hôtes en noir
-    pdf.set_font("Arial", "", 12)
-    for host in data.get('hosts_up', []):
-        pdf.cell(0, 6, f"- {host}", ln=True)
-    pdf.ln(8)
-
-    # --- Section Nmap ---
-    pdf.set_text_color(0, 102, 204)  # bleu moyen pour cohérence
-    pdf.set_font("Arial", "B", 14)
-    pdf.cell(0, 8, "Résultats Nmap :", ln=True)
-    pdf.set_text_color(0, 0, 0)  # texte en noir
-    pdf.set_font("Arial", "", 12)
-
-    for host in data.get('nmap', []):
-        pdf.set_font("Arial", "B", 12)
-        pdf.set_text_color(0, 51, 102)  # bleu foncé pour le nom de l'hôte
-        pdf.cell(0, 7, f"Hôte : {host.get('ip')}", ln=True)
-        pdf.set_font("Arial", "", 12)
-        pdf.set_text_color(0, 0, 0)  # texte en noir pour le détail
-
-        for svc in host.get('services', []):
-            # Afficher port/service/product/version avec un tiret ASCII
-            line = f"  - {svc.get('port')}  {svc.get('service')}  {svc.get('product') or ''}  {svc.get('version') or ''}"
-            pdf.multi_cell(0, 6, line)
-
-            # Si des CVE sont présentes, les afficher en italique et en rouge foncé
-            cves = svc.get('cves', [])
-            if cves:
-                pdf.set_text_color(153, 0, 0)  # rouge foncé pour les CVE
-                pdf.set_font("Arial", "I", 11)
-                pdf.multi_cell(0, 6, f"    CVEs détectées : {', '.join(cves)}")
-                pdf.set_font("Arial", "", 12)
-                pdf.set_text_color(0, 0, 0)  # revenir au noir
-
-        pdf.ln(4)
-
-    # --- Générer le fichier PDF ---
-    try:
-        pdf.output(filename)
-        logger.info(f"[generate_pdf_report] Rapport PDF généré : {filename}")
-    except Exception:
-        logger.exception("[generate_pdf_report] Erreur génération PDF")
+    return {"domain": domain, "controllers": controllers}
 
 
-async def send_data_to_server(uri: str, data: dict):
-    """
-    Envoie les données JSON via WebSocket à l’URI spécifiée.
-    """
-    try:
-        async with websockets.connect(uri) as ws:
-            await ws.send(json.dumps(data))
-            logger.info("[send_data_to_server] Données envoyées via WebSocket")
-    except Exception:
-        logger.exception("[send_data_to_server] Erreur envoi WebSocket")
-
-
-def main():
+if __name__ == "__main__":
     logger.info("=== Démarrage Network Tool ===")
 
     # 0. Infos réseau
@@ -377,9 +283,14 @@ def main():
     dns_list = get_dns_servers()
     dhcp_server = get_dhcp_server_systemd()
     logger.info(f"[main] Config réseau -> IP: {ip}, IFACE: {iface}, GW: {gateway}")
-
+    
     # 1. Ping sweep
     hosts_up = scan_network(ip, iface)
+
+    hosts_details = [{
+        "ip":  h,
+        "dns": reverse_dns(h, dns_list) or "-"
+    } for h in hosts_up]
 
     # 2. Scan Nmap multi-hôtes
     nmap_results = scan_with_nmap(hosts_up)
@@ -389,27 +300,28 @@ def main():
     logger.info(json.dumps(nmap_results, indent=2))
 
     # 4. Préparation des données
+    # 4. Préparation des données pour le rapport -------------------------------
+    services_flat = []
+    for host in nmap_results:
+        for s in host["services"]:
+            services_flat.append({
+                "host":          host["ip"],
+                "port":          s["port"],
+                "service":       s["service"],
+                "product":       s["product"] or "",
+                "version":       s["version"] or "",
+                "cves":          s["cves"],
+                "cves_display":  format_cve_display(s["cves"]) if s["cves"] else "-"
+            })
+
     data = {
-        "interface": iface,
-        "ip":        ip,
-        "gateway":   gateway,
-        "dns":       dns_list,
-        "dhcp":      dhcp_server,
-        "hosts_up":  hosts_up,
-        "nmap":      nmap_results
+        "interface":     iface,
+        "ip_address":    ip,
+        "gateway":       gateway,
+        "dhcp":          dhcp_server,
+        "active_hosts":  hosts_details,
+        "services":      services_flat
     }
 
-    # 5. Envoi WebSocket
-    try:
-        asyncio.run(send_data_to_server(WEBSOCKET_URI, data))
-    except Exception:
-        logger.exception("[main] Erreur exécution WebSocket final")
-
-    # 6. Génération du rapport PDF
-    generate_pdf_report(data, PDF_OUTPUT)
-
+    generate_html_report(data, HTML_OUTPUT)
     logger.info("=== Fin Network Tool ===")
-
-
-if __name__ == "__main__":
-    main()
