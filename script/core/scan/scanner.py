@@ -100,7 +100,7 @@ def reverse_dns(ip: str, nameservers: list[str] | None = None, timeout: float = 
     nameservers : liste d’IP DNS à utiliser (sinon ceux du système).
     """
     try:
-        ptr = dns.reversename.from_address(ip)           # 106.1.168.192.in-addr.arpa
+        ptr = dns.reversename.from_address(ip)
         res = dns.resolver.Resolver()
         if nameservers:
             res.nameservers = nameservers
@@ -160,7 +160,7 @@ def scan_network(ip: str, iface: str) -> list[str]:
         if not addrs:
             logger.warning(f"[scan_network] Aucune adresse IPv4 sur {iface}")
             return up_hosts
-        netmask = addrs[0].get("netmask")
+        netmask = 16
         network = ipaddress.IPv4Network(f"{ip}/{netmask}", strict=False)
         logger.info(f"[scan_network] Balayage réseau {network}")
         with multiprocessing.Pool() as pool:
