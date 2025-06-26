@@ -5,8 +5,8 @@ from setuptools import setup, find_packages
 setup(
     name="NovaSentinel",
     version="0.1.0",
-    description="Ton projet NovaSentinel",
-    author="Me",
+    description="Scan networks and devices for vulnerabilities",
+    author="Oliveira Evan",
     packages=find_packages(),
     install_requires=[
         "python-dotenv",

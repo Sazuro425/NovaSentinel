@@ -17,22 +17,22 @@ import netifaces
 import dns.resolver
 import nmap
 import requests
-from dotenv import load_dotenv
-from script.core.log.mylog import get_custom_logger
-from script.core.report.my_report import generate_html_report
+from core.log.mylog import get_custom_logger
 import multiprocessing
-from cve import format_cve_display
+from core.scan.cve import format_cve_display
+import time
+from multiprocessing.dummy import Pool as ThreadPool  # Thread-based Pool
+import dns.reversename 
+import dns.exception 
+import core.mydotenv    # Assure le chargement du fichier .env
 
-# Charger les variables d'environnement
-load_dotenv()
-OPENCVE_URL   = os.getenv("OPENCVE_URL", "")     # URL de l’instance OpenCVE
+# Chargement des variables d'environnement
+OPENCVE_URL   = os.getenv("OPENCVE_URL", "")
 OPENCVE_USER = os.getenv("OPENCVE_USER")
 OPENCVE_PASS = os.getenv("OPENCVE_PASS")
-WEBSOCKET_URI = os.getenv("Manager", "ws://localhost:8000")
-HTML_OUTPUT = os.getenv("HTML_OUTPUT_PATH", "network_report.html")
+WEBSOCKET_URI = os.getenv("Server", "ws://localhost:8000")
 
-logger = get_custom_logger("network_tool")
-
+logger = get_custom_logger("scanner")
 
 def get_default_ip() -> str:
     """
@@ -47,7 +47,6 @@ def get_default_ip() -> str:
     except Exception:
         logger.exception("[get_default_ip] Erreur obtention IP par défaut")
         return ""
-
 
 def get_interface_by_ip(ip: str) -> str:
     """
@@ -91,8 +90,6 @@ def get_dns_servers() -> list[str]:
         logger.exception("[get_dns_servers] Erreur obtention serveurs DNS")
         return []
 
-import dns.reversename
-import dns.exception
 
 def reverse_dns(ip: str, nameservers: list[str] | None = None, timeout: float = 2.0) -> str:
     """
@@ -149,10 +146,10 @@ def ping_host(ip: str) -> bool:
     except subprocess.CalledProcessError:
         return False
 
-
 def scan_network(ip: str, iface: str) -> list[str]:
     """
-    Balaye le réseau (ping sweep) en parallèle pour détecter les hôtes up.
+    Balaye le réseau (ping sweep) en parallèle pour détecter les hôtes UP.
+    Optimisé pour Raspberry Pi ou machine à faible ressources.
     """
     up_hosts = []
     try:
@@ -160,23 +157,43 @@ def scan_network(ip: str, iface: str) -> list[str]:
         if not addrs:
             logger.warning(f"[scan_network] Aucune adresse IPv4 sur {iface}")
             return up_hosts
-        netmask = 16
-        network = ipaddress.IPv4Network(f"{ip}/{netmask}", strict=False)
-        logger.info(f"[scan_network] Balayage réseau {network}")
-        with multiprocessing.Pool() as pool:
-            results = pool.map(ping_host, [str(h) for h in network.hosts()])
-        for host, alive in zip(network.hosts(), results):
-            if alive:
-                up_hosts.append(str(host))
-        logger.info(f"[scan_network] Hôtes UP : {up_hosts}")
+
+        ip_info = addrs[0]
+        network = ipaddress.IPv4Network(f"{ip_info['addr']}/24", strict=False)
+        hosts = [str(h) for h in network.hosts()]
+        total = len(hosts)
+        logger.info(f"[scan_network] Début du balayage du réseau {network} ({total} hôtes)")
+
+        # Détermine le nombre de threads selon le CPU
+        CPU_COUNT = os.cpu_count() or 4
+        THREAD_COUNT = min(300, CPU_COUNT * 50)
+        logger.info(f"[scan_network] Utilisation de {THREAD_COUNT} threads (basé sur {CPU_COUNT} cœurs)")
+
+        # Échantillonnage pour estimation de durée
+        sample_size = min(100, total)
+        start = time.time()
+        with ThreadPool(THREAD_COUNT) as pool:
+            sample_results = list(pool.map(ping_host, hosts[:sample_size]))
+        duration = time.time() - start
+        if duration > 0:
+            rate = sample_size / duration
+            estimated_time = total / rate
+            logger.info(f"[scan_network] Estimation : ~{int(estimated_time)} sec pour {total} IPs (≈ {rate:.1f} IP/s)")
+
+        # Scan complet avec pool de threads
+        start_full = time.time()
+        with ThreadPool(THREAD_COUNT) as pool:
+            results = list(pool.imap(ping_host, hosts))
+        up_hosts = [ip for ip, alive in zip(hosts, results) if alive]
+
+        elapsed = int(time.time() - start_full)
+        logger.info(f"[scan_network] Balayage terminé en {elapsed} sec. Hôtes UP : {len(up_hosts)}")
+        if up_hosts:
+            logger.info(f"[scan_network] Exemple : {up_hosts[:10]}{'...' if len(up_hosts) > 10 else ''}")
+
     except Exception:
         logger.exception("[scan_network] Erreur scan réseau")
     return up_hosts
-
-# ---------------------------------------------------------------------------
-# Configuration (variables d'environnement ou définies ailleurs dans le code)
-# ---------------------------------------------------------------------------
-
 
 def scan_with_nmap(hosts: list[str]) -> list[dict]:
     """
@@ -272,56 +289,3 @@ def discover_domain() -> dict:
 
     return {"domain": domain, "controllers": controllers}
 
-
-if __name__ == "__main__":
-    logger.info("=== Démarrage Network Tool ===")
-
-    # 0. Infos réseau
-    ip = get_default_ip()
-    iface = get_interface_by_ip(ip)
-    gateway = get_gateway()
-    dns_list = get_dns_servers()
-    dhcp_server = get_dhcp_server_systemd()
-    logger.info(f"[main] Config réseau -> IP: {ip}, IFACE: {iface}, GW: {gateway}")
-    
-    # 1. Ping sweep
-    hosts_up = scan_network(ip, iface)
-
-    hosts_details = [{
-        "ip":  h,
-        "dns": reverse_dns(h, dns_list) or "-"
-    } for h in hosts_up]
-
-    # 2. Scan Nmap multi-hôtes
-    nmap_results = scan_with_nmap(hosts_up)
-
-    # 3. Logs bruts pour vérification
-    logger.info("=== Résultats Nmap bruts ===")
-    logger.info(json.dumps(nmap_results, indent=2))
-
-    # 4. Préparation des données
-    # 4. Préparation des données pour le rapport -------------------------------
-    services_flat = []
-    for host in nmap_results:
-        for s in host["services"]:
-            services_flat.append({
-                "host":          host["ip"],
-                "port":          s["port"],
-                "service":       s["service"],
-                "product":       s["product"] or "",
-                "version":       s["version"] or "",
-                "cves":          s["cves"],
-                "cves_display":  format_cve_display(s["cves"]) if s["cves"] else "-"
-            })
-
-    data = {
-        "interface":     iface,
-        "ip_address":    ip,
-        "gateway":       gateway,
-        "dhcp":          dhcp_server,
-        "active_hosts":  hosts_details,
-        "services":      services_flat
-    }
-
-    generate_html_report(data, HTML_OUTPUT)
-    logger.info("=== Fin Network Tool ===")
