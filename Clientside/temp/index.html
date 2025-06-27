@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaSentinel - Scanner de Sécurité Réseau</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-shield-alt"></i>
+                    <h1>NovaSentinel</h1>
+                </div>
+                <nav class="nav">
+                    <a href="#dashboard" class="nav-link active" data-page="dashboard">
+                        <i class="fas fa-home"></i> Dashboard
+                    </a>
+                    <a href="#scanner" class="nav-link" data-page="scanner">
+                        <i class="fas fa-search"></i> Scanner
+                    </a>
+                    <a href="#results" class="nav-link" data-page="results">
+                        <i class="fas fa-list"></i> Résultats
+                    </a>
+                    <a href="#reports" class="nav-link" data-page="reports">
+                        <i class="fas fa-file-alt"></i> Rapports
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <!-- Dashboard Page -->
+        <div id="dashboard" class="page active">
+            <div class="container">
+                <!-- Hero Section -->
+                <section class="hero">
+                    <h2>Scanner de Sécurité Réseau</h2>
+                    <p>Analysez votre réseau, détectez les vulnérabilités et générez des rapports complets</p>
+                    <div class="hero-buttons">
+                        <button class="btn btn-primary" onclick="showPage('scanner')">
+                            <i class="fas fa-play"></i> Nouveau Scan
+                        </button>
+                        <button class="btn btn-secondary" onclick="showPage('results')">
+                            <i class="fas fa-eye"></i> Voir les Résultats
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Stats Cards -->
+                <section class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-network-wired"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="active-hosts">7</h3>
+                            <p>Hôtes Actifs</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="total-services">23</h3>
+                            <p>Services</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="critical-cves">8</h3>
+                            <p>CVE Critiques</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="last-scan">26/06/2025</h3>
+                            <p>Dernier Scan</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Quick Actions -->
+                <section class="actions-grid">
+                    <div class="action-card" onclick="showPage('scanner')">
+                        <div class="action-icon">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <h3>Lancer un Scan</h3>
+                        <p>Démarrer une nouvelle analyse du réseau</p>
+                    </div>
+                    <div class="action-card" onclick="showPage('results')">
+                        <div class="action-icon">
+                            <i class="fas fa-eye"></i>
+                        </div>
+                        <h3>Voir les Résultats</h3>
+                        <p>Consulter les derniers résultats de scan</p>
+                    </div>
+                    <div class="action-card" onclick="showPage('reports')">
+                        <div class="action-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <h3>Générer un Rapport</h3>
+                        <p>Créer des rapports PDF ou HTML</p>
+                    </div>
+                </section>
+
+                <!-- Recent Activity -->
+                <section class="activity-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Activité Récente</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="activity-item">
+                                <div class="activity-dot success"></div>
+                                <div class="activity-content">
+                                    <p><strong>Scan réseau terminé</strong></p>
+                                    <small>7 hôtes détectés - il y a 2 heures</small>
+                                </div>
+                                <span class="badge success">Succès</span>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-dot warning"></div>
+                                <div class="activity-content">
+                                    <p><strong>8 CVE critiques détectées</strong></p>
+                                    <small>OpenSSH vulnérabilités - il y a 2 heures</small>
+                                </div>
+                                <span class="badge danger">Critique</span>
+                            </div>
+                            <div class="activity-item">
+                                <div class="activity-dot info"></div>
+                                <div class="activity-content">
+                                    <p><strong>Rapport PDF généré</strong></p>
+                                    <small>network_report.pdf - il y a 3 heures</small>
+                                </div>
+                                <span class="badge info">Info</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+        <!-- Scanner Page -->
+        <div id="scanner" class="page">
+            <div class="container">
+                <div class="scanner-layout">
+                    <!-- Configuration -->
+                    <div class="scanner-config">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3><i class="fas fa-cog"></i> Configuration</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="form-group">
+                                    <label for="target">Cible (IP/Réseau)</label>
+                                    <input type="text" id="target" value="192.168.1.0/24" placeholder="192.168.1.0/24">
+                                </div>
+                                <div class="form-group">
+                                    <label for="ports">Ports à scanner</label>
+                                    <input type="text" id="ports" value="1-1000" placeholder="1-1000">
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="enableService" checked>
+                                        Détection de services
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="enableCVE" checked>
+                                        Recherche de CVE
+                                    </label>
+                                </div>
+                                <button id="scanBtn" class="btn btn-primary btn-full" onclick="startScan()">
+                                    <i class="fas fa-play"></i> Démarrer le Scan
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Results -->
+                    <div class="scanner-results">
+                        <!-- Progress -->
+                        <div id="scanProgress" class="card" style="display: none;">
+                            <div class="card-header">
+                                <h3>Scan en cours...</h3>
+                            </div>
+                            <div class="card-content">
+                                <div class="progress-bar">
+                                    <div id="progressFill" class="progress-fill"></div>
+                                </div>
+                                <div class="progress-info">
+                                    <span id="progressText">0%</span>
+                                    <span id="progressStep">En attente...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Scan Results -->
+                        <div id="scanResults" class="scan-results-grid" style="display: none;">
+                            <div class="result-card">
+                                <div class="result-icon">
+                                    <i class="fas fa-network-wired"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h3 id="resultHosts">0</h3>
+                                    <p>Hôtes</p>
+                                </div>
+                            </div>
+                            <div class="result-card">
+                                <div class="result-icon">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h3 id="resultServices">0</h3>
+                                    <p>Services</p>
+                                </div>
+                            </div>
+                            <div class="result-card">
+                                <div class="result-icon">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h3 id="resultCVEs">0</h3>
+                                    <p>CVE</p>
+                                </div>
+                            </div>
+                            <div class="result-card">
+                                <div class="result-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <div class="result-content">
+                                    <h3 id="resultDuration">0s</h3>
+                                    <p>Durée</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Console -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Console de Log</h3>
+                            </div>
+                            <div class="card-content">
+                                <div id="console" class="console">
+                                    En attente du démarrage du scan...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Page -->
+        <div id="results" class="page">
+            <div class="container">
+                <!-- Network Info -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-network-wired"></i> Informations Réseau</h3>
+                        <small>Scan effectué le 26/06/2025 11:36:41</small>
+                    </div>
+                    <div class="card-content">
+                        <div class="network-info">
+                            <div class="info-item">
+                                <strong>Adresse IP:</strong>
+                                <span>192.168.1.106</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>Interface:</strong>
+                                <span>ens18</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>Passerelle:</strong>
+                                <span>192.168.1.254</span>
+                            </div>
+                            <div class="info-item">
+                                <strong>DNS:</strong>
+                                <span>192.168.1.254</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="card">
+                    <div class="card-content">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchInput" placeholder="Rechercher par IP, service ou produit..." onkeyup="filterResults()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hosts List -->
+                <div id="hostsList" class="hosts-list">
+                    <!-- Les hôtes seront générés par JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Page -->
+        <div id="reports" class="page">
+            <div class="container">
+                <!-- Generate Reports -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-file-alt"></i> Générer un Nouveau Rapport</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="report-buttons">
+                            <button class="btn btn-primary" onclick="generateReport('html')">
+                                <i class="fas fa-code"></i> Rapport HTML
+                            </button>
+                            <button class="btn btn-secondary" onclick="generateReport('pdf')">
+                                <i class="fas fa-file-pdf"></i> Rapport PDF
+                            </button>
+                            <button class="btn btn-secondary" onclick="generateReport('json')">
+                                <i class="fas fa-file-code"></i> Export JSON
+                            </button>
+                        </div>
+                        <div id="generateStatus" class="generate-status" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            Génération du rapport en cours...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reports List -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Rapports Disponibles</h3>
+                    </div>
+                    <div class="card-content">
+                        <div class="table-container">
+                            <table class="reports-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nom du Rapport</th>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Taille</th>
+                                        <th>Résultats</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="reportsTableBody">
+                                    <!-- Les rapports seront générés par JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
