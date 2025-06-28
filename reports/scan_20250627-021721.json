@@ -1,5 +1,5 @@
 {
-  "timestamp": 1750955801,
+  "timestamp": 1751008641,
   "network": {
     "ip": "192.168.1.106",
     "interface": "ens18",
@@ -27,7 +27,7 @@
           "service": "kerberos-sec",
           "product": "Microsoft Windows Kerberos",
           "version": "",
-          "info": "server time: 2025-06-26 16:34:29Z",
+          "info": "server time: 2025-06-27 07:15:10Z",
           "cves": []
         },
         {
@@ -205,6 +205,28 @@
       ]
     },
     {
+      "ip": "192.168.1.104",
+      "services": [
+        {
+          "port": "22/tcp",
+          "service": "ssh",
+          "product": "OpenSSH",
+          "version": "9.2p1 Debian 2+deb12u6",
+          "info": "protocol 2.0",
+          "cves": [
+            "CVE-2023-38408",
+            "CVE-2023-28531",
+            "CVE-2024-6387",
+            "CVE-2025-26465",
+            "CVE-2023-51385",
+            "CVE-2023-48795",
+            "CVE-2023-51384",
+            "CVE-2025-32728"
+          ]
+        }
+      ]
+    },
+    {
       "ip": "192.168.1.106",
       "services": [
         {
@@ -274,28 +296,6 @@
           "version": "",
           "info": "",
           "cves": []
-        }
-      ]
-    },
-    {
-      "ip": "192.168.1.99",
-      "services": [
-        {
-          "port": "22/tcp",
-          "service": "ssh",
-          "product": "OpenSSH",
-          "version": "9.2p1 Debian 2+deb12u6",
-          "info": "protocol 2.0",
-          "cves": [
-            "CVE-2023-38408",
-            "CVE-2023-28531",
-            "CVE-2024-6387",
-            "CVE-2025-26465",
-            "CVE-2023-51385",
-            "CVE-2023-48795",
-            "CVE-2023-51384",
-            "CVE-2025-32728"
-          ]
         }
       ]
     }

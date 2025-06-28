@@ -9,7 +9,7 @@ import requests
 from dotenv import load_dotenv
 from requests.exceptions import HTTPError, RequestException
 from core.log.mylog import get_custom_logger
-load_dotenv()
+import core.mydotenv
 
 OPENCVE_URL_API = os.getenv("OPENCVE_URL_API", "https://api.opencve.io/api").rstrip("/")
 OPENCVE_USER = os.getenv("OPENCVE_USER")
@@ -74,6 +74,6 @@ def format_cve_display(cve_ids: list[str]) -> str:
                     break
         link = f"{base_ui_url}/cve/{cve_id}"
         output.append(f"{cve_id} (score: {score}) — {link}")
-    return "\n".join(output)  # ou ", ".join(output) selon ton moteur PDF
+    return "\n".join(output)
 
 

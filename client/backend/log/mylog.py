@@ -1,6 +1,7 @@
 import os
 import logging
-import core.mydotenv  # Ensure .env is loaded
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv(), override=True)
 
 def get_custom_logger(name: str) -> logging.Logger:
     # Niveau de log configurable via LEVEL_LOG, par défaut INFO
