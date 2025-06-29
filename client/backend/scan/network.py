@@ -27,7 +27,7 @@ import nmap
 from dotenv import load_dotenv, find_dotenv
 
 from client.backend.log.mylog import get_custom_logger
-
+from cve import enrich_cves
 # ────────────────────────────────────────────────
 # Chargement .env et logger
 # ────────────────────────────────────────────────
@@ -152,42 +152,7 @@ def scan_with_nmap(hosts: List[str]) -> List[Dict]:
                     "info": serv.get("extrainfo"),
                     "cves": cves,
                 })
+            enrich_cves(service) 
         results.append(entry)
     logger.info("[scan_with_nmap] Completed. %d hosts detailed", len(results))
     return results
-
-def enrich_cves(service: Dict[str, Any]) -> None:
-    """Ajoute link_cve[] et score[] en regard de service['cves']."""
-    links, scores = [], []
-    base_url = OPENCVE_URL.rstrip('/').replace('/api', '')
-    for cve_id in service.get("cves", []):
-        data  = search_cve(cve_id) or {}
-        score = "-"
-        metrics = data.get("metrics", {})
-        for key in ("cvssV4_0", "cvssV3_1", "cvssV3_0", "cvssV2_0"):
-            score = metrics.get(key, {}).get("data", {}).get("score", score)
-            if score != "-":
-                break
-        links.append(f"{base_url}/cve/{cve_id}")
-        scores.append(score)
-    service["link_cve"] = links
-    service["score"]    = scores
-
-# ────────────────────────────────────────────────
-# Exécution simple pour debug
-# ────────────────────────────────────────────────
-
-if __name__ == "__main__":  # pragma: no cover
-    ip_local = get_default_ip()
-    print("IP:", ip_local)
-    iface = get_interface_by_ip(ip_local)
-    print("Interface:", iface)
-    print("Gateway:", get_gateway())
-    print("DNS:", get_dns_servers())
-
-    hosts_up = scan_network(ip_local+"/24", iface)
-    print("Hosts up:", hosts_up)
-
-    if hosts_up:
-        res = scan_with_nmap(hosts_up[:5])  # limite à 5 hôtes pour test
-        print(json.dumps(res, indent=2, ensure_ascii=False))

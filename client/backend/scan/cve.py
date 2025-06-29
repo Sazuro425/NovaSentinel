@@ -30,34 +30,37 @@ def _get_session() -> requests.Session:
     })
     return sess
 
-def search_cve(cve_id: str, *, timeout: int = _DEFAULT_TIMEOUT) -> Optional[Dict[str, Any]]:
-    if not OPENCVE_URL_API or not (OPENCVE_USER and OPENCVE_PASS):
-        logger.warning("[search_cve] Configuration OpenCVE incomplte")
+def search_cve(cve_id: str) -> dict[str, Any] | None:
+    """Retourne le JSON NVD (v2.0) d’un CVE ou None en cas d’erreur."""
+    try:
+        r = requests.get(f"{NVD_API_URL}?cveId={cve_id}", timeout=10)
+        r.raise_for_status()
+        j = r.json()
+        vulns = j.get("vulnerabilities", [])
+        return vulns[0]["cve"] if vulns else None
+    except Exception:
+        logger.exception("CVE lookup failed for %s", cve_id)
         return None
 
-    cve_id = cve_id.strip().upper()
-    if not cve_id.startswith("CVE-"):
-        raise ValueError(f"Identifiant CVE invalide : '{cve_id}'")
 
-    url = f"{OPENCVE_URL_API}/cve/{urllib.parse.quote_plus(cve_id)}"
-    sess = _get_session()
-
-    try:
-        resp = sess.get(url, timeout=timeout)
-        if resp.status_code == 404:
-            logger.info(f"[search_cve] CVE non trouver : {cve_id}")
-            return None
-
-        resp.raise_for_status()
-        return resp.json()
-
-    except HTTPError as exc:
-        logger.warning(f"[search_cve] HTTP {resp.status_code} : {exc}")
-    except RequestException as exc:
-        logger.warning(f"[search_cve] Erreur r\u00e9seau : {exc}")
-    except Exception as exc:
-        logger.exception(f"[search_cve] Exception inattendue : {exc}")
-    return None
+def enrich_cves(service: Dict[str, Any]) -> None:
+    """Ajoute link_cve[] et score[] à un service déjà rempli par Nmap."""
+    links, scores = [], []
+    base_url = OPENCVE_URL.rstrip("/").replace("/api", "")
+    for cve_id in service.get("cves", []):
+        links.append(f"{base_url}/cve/{cve_id}")
+        score = "-"
+        data = search_cve(cve_id) or {}
+        # NVD v2.0 : metrics → cvssMetricV31 / V30 / V2
+        for key in ("cvssMetricV40", "cvssMetricV31",
+                    "cvssMetricV30", "cvssMetricV2"):
+            metric = (data.get("metrics", {}).get(key) or [{}])[0]
+            score = metric.get("cvssData", {}).get("baseScore", score)
+            if score != "-":
+                break
+        scores.append(score)
+    service["link_cve"] = links
+    service["score"] = scores
 
 def format_cve_display(cve_ids: list[str]) -> str:
     output = []
