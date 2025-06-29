@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from network import (
     get_default_ip, get_interface_by_ip, get_gateway, get_dns_servers,
     get_dhcp_server_systemd, scan_network, scan_with_nmap

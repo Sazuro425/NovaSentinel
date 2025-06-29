@@ -156,22 +156,22 @@ def scan_with_nmap(hosts: List[str]) -> List[Dict]:
     logger.info("[scan_with_nmap] Completed. %d hosts detailed", len(results))
     return results
 
-def find_cves(service: Dict[str, Any]) -> None:
-    detail: List[Dict[str, Any]] = []
+def enrich_cves(service: Dict[str, Any]) -> None:
+    """Ajoute link_cve[] et score[] en regard de service['cves']."""
+    links, scores = [], []
+    base_url = OPENCVE_URL.rstrip('/').replace('/api', '')
     for cve_id in service.get("cves", []):
-        data = search_cve(cve_id) or {}
+        data  = search_cve(cve_id) or {}
         score = "-"
-        metr = data.get("metrics", {})
+        metrics = data.get("metrics", {})
         for key in ("cvssV4_0", "cvssV3_1", "cvssV3_0", "cvssV2_0"):
-            score = metr.get(key, {}).get("data", {}).get("score", score)
+            score = metrics.get(key, {}).get("data", {}).get("score", score)
             if score != "-":
                 break
-        detail.append({
-            "id": cve_id,
-            "score": score,
-            "link": f"{OPENCVE_URL}/cve/{cve_id}"
-        })
-    service["cves_detail"] = detail
+        links.append(f"{base_url}/cve/{cve_id}")
+        scores.append(score)
+    service["link_cve"] = links
+    service["score"]    = scores
 
 # ────────────────────────────────────────────────
 # Exécution simple pour debug
