@@ -26,7 +26,7 @@ import netifaces
 import nmap
 from dotenv import load_dotenv, find_dotenv
 
-from client.backend.log.mylog import get_custom_logger
+from client.backend.utils.mylog import get_custom_logger
 from cve import enrich_cves
 # ────────────────────────────────────────────────
 # Chargement .env et logger
@@ -139,20 +139,46 @@ def scan_with_nmap(hosts: List[str]) -> List[Dict]:
     results: List[Dict] = []
     for host in nm.all_hosts():
         entry = {"ip": host, "services": []}
+
         for proto in nm[host].all_protocols():
             for port in sorted(nm[host][proto]):
                 serv = nm[host][proto][port]
                 cves = [line.split()[0] for line in serv.get("script", {})
-                        .get("vulners", "").splitlines() if line.startswith("CVE-")]
-                entry["services"].append({
+                        .get("vulners", "").splitlines()
+                        if line.startswith("CVE-")]
+
+                service = {
                     "port": f"{port}/{proto}",
                     "service": serv.get("name"),
                     "product": serv.get("product"),
                     "version": serv.get("version"),
                     "info": serv.get("extrainfo"),
                     "cves": cves,
-                })
-            enrich_cves(service) 
+                }
+                enrich_cves(service)
+                entry["services"].append(service)
+
         results.append(entry)
+
     logger.info("[scan_with_nmap] Completed. %d hosts detailed", len(results))
     return results
+
+
+if __name__ == "__main__":
+    # Exécution de test rapide
+    logger.info("Default IP: %s", get_default_ip())
+    iface = get_interface_by_ip(get_default_ip())
+    logger.info("Interface for default IP: %s", iface)
+    logger.info("Gateway: %s", get_gateway())
+    logger.info("DNS servers: %s", get_dns_servers())
+    logger.info("DHCP server (systemd): %s", get_dhcp_server_systemd())
+    
+    # Test de scan réseau
+    up_hosts = scan_network(f"get_default_ip()"+"/24", iface, 10)
+    logger.info("Active hosts: %s", up_hosts)
+    # Test de scan Nmap
+    if up_hosts:
+        nmap_results = scan_with_nmap(up_hosts)
+        logger.info("Nmap results: %s", nmap_results)
+    else:
+        logger.warning("No active hosts found for Nmap scan.")

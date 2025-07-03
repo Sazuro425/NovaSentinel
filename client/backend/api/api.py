@@ -1,28 +1,30 @@
-#!/usr/bin/env python3
-from fastapi import FastAPI, HTTPException
-from pathlib import Path
-from typing import Dict, Any
-import time, json
+from fastapi import FastAPI, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from models import Scan, Service, CVE, get_db  # tes modèles SQLAlchemy
 
-from client.backend.log.mylog import get_custom_logger
-logger = get_custom_logger("api.receiver")
+app = FastAPI()
 
-app = FastAPI(title="NovaSentinel Receiver API", version="1.0.0")
-REPORTS_DIR = Path("reports"); REPORTS_DIR.mkdir(exist_ok=True)
+class CVESchema(BaseModel):
+    id: str
+    score: float | str
+    link: str
 
-@app.post("/ingest")
-async def ingest(report: Dict[str, Any]):
-    """Réception d’un rapport JSON produit ailleurs (scanner)."""
-    ts = time.strftime("%Y%m%d-%H%M%S")
-    outfile = REPORTS_DIR / f"scan_{ts}.json"
-    outfile.write_text(json.dumps(report, indent=2, ensure_ascii=False))
-    logger.info("Report saved: %s", outfile)          # ← corrigé
-    return {"status": "saved", "file": str(outfile)}
+class ServiceSchema(BaseModel):
+    port: str
+    service: str
+    product: str | None
+    version: str | None
+    info: str | None
+    cves: list[CVESchema]
 
-@app.get("/latest")
-async def latest():
-    """Renvoie le dernier rapport JSON enregistré."""
-    files = sorted(REPORTS_DIR.glob("scan_*.json"), reverse=True)
-    if not files:
-        raise HTTPException(404, "No report yet")
-    return json.loads(files[0].read_text())
+class HostSchema(BaseModel):
+    ip: str
+    services: list[ServiceSchema]
+
+@app.get("/api/scans/{scan_id}", response_model=list[HostSchema])
+def scan_result(scan_id: int, db: Session = Depends(get_db)):
+    scan = db.query(Scan).filter_by(id=scan_id).first()
+    if not scan:
+        raise HTTPException(404)
+    return scan.hosts
