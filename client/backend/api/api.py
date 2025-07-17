@@ -1,30 +1,28 @@
-from fastapi import FastAPI, Depends, HTTPException
+from uuid import uuid4
+import asyncio
+from typing import Dict, List
+
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from models import Scan, Service, CVE, get_db  # tes modèles SQLAlchemy
 
+# import direct depuis ton backend existant
+from client.backend.scan.network import scan_with_nmap
+from client.backend.utils.myjson import save_scan, load_scan
+
+import datetime
 app = FastAPI()
+scans: Dict[str, dict | None] = {}      # id → résultat (None = en cours)
 
-class CVESchema(BaseModel):
-    id: str
-    score: float | str
-    link: str
+class ScanRequest(BaseModel):
+    hosts: List[str]
 
-class ServiceSchema(BaseModel):
-    port: str
-    service: str
-    product: str | None
-    version: str | None
-    info: str | None
-    cves: list[CVESchema]
+@app.get("/")
+def read_root():
+    return {"API": "Network Scan API"}
 
-class HostSchema(BaseModel):
-    ip: str
-    services: list[ServiceSchema]
+@app.post("/scan", response_model=str)
+async def start_scan(request: ScanRequest):
 
-@app.get("/api/scans/{scan_id}", response_model=list[HostSchema])
-def scan_result(scan_id: int, db: Session = Depends(get_db)):
-    scan = db.query(Scan).filter_by(id=scan_id).first()
-    if not scan:
-        raise HTTPException(404)
-    return scan.hosts
+@app.post("/scan", response_model=str)
+def report():
+    scan_id = datetime.datetime.now().strftime("%Y%m%d%H%M%S") + "-" + str(uuid4())

@@ -26,8 +26,8 @@ import netifaces
 import nmap
 from dotenv import load_dotenv, find_dotenv
 
-from client.backend.utils.mylog import get_custom_logger
-from cve import enrich_cves
+from backend.utils.mylog import get_custom_logger
+from .cve import enrich_cves
 # ────────────────────────────────────────────────
 # Chargement .env et logger
 # ────────────────────────────────────────────────
