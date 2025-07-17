@@ -27,7 +27,7 @@ from typing import Any, Dict, Optional
 import requests
 from dotenv import find_dotenv, load_dotenv
 from requests.exceptions import RequestException
-from client.backend.utils.mylog import get_custom_logger
+from backend.utils.mylog import get_custom_logger
 
 # ---------------------------------------------------------------------------
 # Environment & logger ------------------------------------------------------
@@ -101,8 +101,8 @@ def enrich_cves(service: Dict[str, Any]) -> None:
     """Populate ``link_cve`` and ``score`` arrays for a service dict.
 
     Modifies *service* in-place, adding:
-        * ``link_cve`` – list[str]
-        * ``score``    – list[float|str]
+        * ``link_cve``  list[str]
+        * ``score``     list[float|str]
     """
     links, scores = [], []
     base_ui = OPENCVE_URL.rstrip("/").replace("/api", "")
@@ -120,15 +120,30 @@ def enrich_cves(service: Dict[str, Any]) -> None:
     service["link_cve"] = links
     service["score"] = scores
 
-def format_cve_display(cve_ids: list[str]) -> str:
-    """Return a human-readable string (one line per CVE)."""
-    lines, base_ui = [], OPENCVE_URL.rstrip("/").replace("/api", "")
-    logger.debug("Formatting display for %d CVE IDs", len(cve_ids))
-    for cve_id in cve_ids:
-        data = search_cve(cve_id)
-        score = _extract_score(data) if data else "-"
-        lines.append(f"{cve_id} (score: {score}) — {base_ui}/cve/{cve_id}")
-    return "\n".join(lines)
+# backend/scan/cve.py
+from html import escape
+
+OPEN_CVE_URL = "https://www.opencve.io/cve/{}"
+
+def format_cve_display(cves: list[str]) -> str:
+    """
+    Retourne une chaîne HTML contenant les CVE cliquables vers OpenCVE.
+    - Affiche « - » quand la liste est vide.
+    - Supprime les doublons et trie les identifiants pour l’esthétique.
+    """
+    if not cves:
+        return "-"
+
+    # uniques + triés
+    uniq = sorted(set(cves), key=lambda x: (x[:13], int(x.split("-")[2])))
+    links = [
+        f'<a href="{OPEN_CVE_URL.format(escape(cve))}" '
+        f'target="_blank" rel="noopener">{escape(cve)}</a>'
+        for cve in uniq
+    ]
+    # Saut de ligne pour lisibilité dans la cellule du tableau
+    return "<br/>".join(links)
+
 
 if __name__ == "__main__":
     ids = ["CVE-2021-34527", "CVE-2020-0601"]

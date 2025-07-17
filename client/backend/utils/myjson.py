@@ -1,18 +1,21 @@
-import json, os, pathlib, tempfile
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, Dict, Optional
+import json
 
-json_path = pathlib.Path("scan.json")           # à la racine du dépôt
-
-def save_scan(data: Dict[str, Any]) -> None:
-    tmp_fd, tmp_name = tempfile.mkstemp(dir=json_path.parent, text=True)
-    with os.fdopen(tmp_fd, "w") as tmp:
-        json.dump(data, tmp, indent=2)
-    os.replace(tmp_name, json_path)             
-
-def load_scan() -> Dict[str, Any] | None:
-    if not json_path.exists():
+def load_scan(path: str | Path) -> Optional[Dict[str, Any]]:
+    """
+    Charge et retourne le contenu JSON du fichier passé en argument.
+    Renvoie None si le chemin est vide, inexistant ou si le JSON est invalide.
+    """
+    if not path:                       # path == "" ou None
         return None
+
+    p = Path(path)                     # accepte str ou Path
+    if not p.exists():
+        return None
+
     try:
-        return json.loads(json_path.read_text())
-    except ValueError:                   # JSON incomplet = on ignore
+        return json.loads(p.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, ValueError):
+        # Fichier en cours d'écriture ou contenu non valide
         return None

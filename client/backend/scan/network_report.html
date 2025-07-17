@@ -1,0 +1,334 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Rapport de Scan Réseau</title>
+  <style>
+    body { font-family: sans-serif; background: #f9fafb; color: #111; }
+    .wrapper { max-width: 960px; margin: auto; padding: 2rem; background: white; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 8px; }
+    header { display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+    header img { height: 60px; border-radius: 8px; }
+    h1, h2 { color: #1f2937; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+    th, td { border: 1px solid #ddd; padding: 0.6rem; text-align: left; }
+    th { background: #1f2937; color: white; }
+    tbody tr:nth-child(odd) { background: #f3f4f6; }
+    .cves { font-size: 0.85rem; line-height: 1.4; }
+    .cves a { color: #2563eb; text-decoration: none; }
+    .cves a:hover { text-decoration: underline; }
+    footer { font-size: 0.75rem; color: #666; text-align: right; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <img src="" alt="Logo" onerror="this.style.display='none'" />
+      <h1>Rapport de Scan Réseau</h1>
+    </header>
+    <section class="meta">
+      <p><b>Interface :</b> ens18</p>
+      <p><b>Adresse IP :</b> 192.168.1.106</p>
+      <p><b>Passerelle :</b> 192.168.1.254</p>
+      <p><b>Mode IP :</b> Statique</p>
+      <p><b>Généré le :</b> 17/07/2025 14:15</p>
+    </section>
+
+    <h2>Hôtes actifs (7)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Adresse IP</th>
+          <th>Nom DNS</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.101</td>
+          <td>-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.102</td>
+          <td>-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.104</td>
+          <td>-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.106</td>
+          <td>-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.108</td>
+          <td>-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.254</td>
+          <td>OPNsense.localdomain</td>
+        </tr>
+        
+      </tbody>
+    </table>
+
+    <h2>Services détectés</h2>
+    <table>
+      <thead>
+        <tr><th>Hôte</th><th>Port</th><th>Service</th><th>Produit</th><th>Version</th><th>CVE(s)</th></tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>53/tcp</td>
+          <td>domain</td>
+          <td>Simple DNS Plus</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>88/tcp</td>
+          <td>kerberos-sec</td>
+          <td>Microsoft Windows Kerberos</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>135/tcp</td>
+          <td>msrpc</td>
+          <td>Microsoft Windows RPC</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>139/tcp</td>
+          <td>netbios-ssn</td>
+          <td>Microsoft Windows netbios-ssn</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>389/tcp</td>
+          <td>ldap</td>
+          <td>Microsoft Windows Active Directory LDAP</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>445/tcp</td>
+          <td>microsoft-ds</td>
+          <td>Microsoft Windows Server 2008 R2 - 2012 microsoft-ds</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>464/tcp</td>
+          <td>kpasswd5</td>
+          <td></td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>593/tcp</td>
+          <td>ncacn_http</td>
+          <td>Microsoft Windows RPC over HTTP</td>
+          <td>1.0</td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>636/tcp</td>
+          <td>tcpwrapped</td>
+          <td></td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>3268/tcp</td>
+          <td>ldap</td>
+          <td>Microsoft Windows Active Directory LDAP</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>3269/tcp</td>
+          <td>tcpwrapped</td>
+          <td></td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>49154/tcp</td>
+          <td>msrpc</td>
+          <td>Microsoft Windows RPC</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>49155/tcp</td>
+          <td>msrpc</td>
+          <td>Microsoft Windows RPC</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>49157/tcp</td>
+          <td>ncacn_http</td>
+          <td>Microsoft Windows RPC over HTTP</td>
+          <td>1.0</td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>49158/tcp</td>
+          <td>msrpc</td>
+          <td>Microsoft Windows RPC</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.1</td>
+          <td>49159/tcp</td>
+          <td>msrpc</td>
+          <td>Microsoft Windows RPC</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.101</td>
+          <td>22/tcp</td>
+          <td>ssh</td>
+          <td>OpenSSH</td>
+          <td>9.2p1 Debian 2+deb12u5</td>
+          <td class="cves"><a href="https://www.opencve.io/cve/CVE-2023-28531" target="_blank" rel="noopener">CVE-2023-28531</a><br/><a href="https://www.opencve.io/cve/CVE-2023-38408" target="_blank" rel="noopener">CVE-2023-38408</a><br/><a href="https://www.opencve.io/cve/CVE-2023-48795" target="_blank" rel="noopener">CVE-2023-48795</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51384" target="_blank" rel="noopener">CVE-2023-51384</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51385" target="_blank" rel="noopener">CVE-2023-51385</a><br/><a href="https://www.opencve.io/cve/CVE-2024-6387" target="_blank" rel="noopener">CVE-2024-6387</a><br/><a href="https://www.opencve.io/cve/CVE-2025-26465" target="_blank" rel="noopener">CVE-2025-26465</a><br/><a href="https://www.opencve.io/cve/CVE-2025-32728" target="_blank" rel="noopener">CVE-2025-32728</a></td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.101</td>
+          <td>80/tcp</td>
+          <td>http</td>
+          <td>nginx</td>
+          <td>1.27.5</td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.101</td>
+          <td>8080/tcp</td>
+          <td>http-proxy</td>
+          <td>gunicorn</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.102</td>
+          <td>22/tcp</td>
+          <td>ssh</td>
+          <td>OpenSSH</td>
+          <td>9.2p1 Debian 2+deb12u6</td>
+          <td class="cves"><a href="https://www.opencve.io/cve/CVE-2023-28531" target="_blank" rel="noopener">CVE-2023-28531</a><br/><a href="https://www.opencve.io/cve/CVE-2023-38408" target="_blank" rel="noopener">CVE-2023-38408</a><br/><a href="https://www.opencve.io/cve/CVE-2023-48795" target="_blank" rel="noopener">CVE-2023-48795</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51384" target="_blank" rel="noopener">CVE-2023-51384</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51385" target="_blank" rel="noopener">CVE-2023-51385</a><br/><a href="https://www.opencve.io/cve/CVE-2024-6387" target="_blank" rel="noopener">CVE-2024-6387</a><br/><a href="https://www.opencve.io/cve/CVE-2025-26465" target="_blank" rel="noopener">CVE-2025-26465</a><br/><a href="https://www.opencve.io/cve/CVE-2025-32728" target="_blank" rel="noopener">CVE-2025-32728</a></td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.104</td>
+          <td>22/tcp</td>
+          <td>ssh</td>
+          <td>OpenSSH</td>
+          <td>9.2p1 Debian 2+deb12u6</td>
+          <td class="cves"><a href="https://www.opencve.io/cve/CVE-2023-28531" target="_blank" rel="noopener">CVE-2023-28531</a><br/><a href="https://www.opencve.io/cve/CVE-2023-38408" target="_blank" rel="noopener">CVE-2023-38408</a><br/><a href="https://www.opencve.io/cve/CVE-2023-48795" target="_blank" rel="noopener">CVE-2023-48795</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51384" target="_blank" rel="noopener">CVE-2023-51384</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51385" target="_blank" rel="noopener">CVE-2023-51385</a><br/><a href="https://www.opencve.io/cve/CVE-2024-6387" target="_blank" rel="noopener">CVE-2024-6387</a><br/><a href="https://www.opencve.io/cve/CVE-2025-26465" target="_blank" rel="noopener">CVE-2025-26465</a><br/><a href="https://www.opencve.io/cve/CVE-2025-32728" target="_blank" rel="noopener">CVE-2025-32728</a></td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.106</td>
+          <td>22/tcp</td>
+          <td>ssh</td>
+          <td>OpenSSH</td>
+          <td>9.2p1 Debian 2+deb12u6</td>
+          <td class="cves"><a href="https://www.opencve.io/cve/CVE-2023-28531" target="_blank" rel="noopener">CVE-2023-28531</a><br/><a href="https://www.opencve.io/cve/CVE-2023-38408" target="_blank" rel="noopener">CVE-2023-38408</a><br/><a href="https://www.opencve.io/cve/CVE-2023-48795" target="_blank" rel="noopener">CVE-2023-48795</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51384" target="_blank" rel="noopener">CVE-2023-51384</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51385" target="_blank" rel="noopener">CVE-2023-51385</a><br/><a href="https://www.opencve.io/cve/CVE-2024-6387" target="_blank" rel="noopener">CVE-2024-6387</a><br/><a href="https://www.opencve.io/cve/CVE-2025-26465" target="_blank" rel="noopener">CVE-2025-26465</a><br/><a href="https://www.opencve.io/cve/CVE-2025-32728" target="_blank" rel="noopener">CVE-2025-32728</a></td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.108</td>
+          <td>22/tcp</td>
+          <td>ssh</td>
+          <td>OpenSSH</td>
+          <td>9.2p1 Debian 2+deb12u6</td>
+          <td class="cves"><a href="https://www.opencve.io/cve/CVE-2023-28531" target="_blank" rel="noopener">CVE-2023-28531</a><br/><a href="https://www.opencve.io/cve/CVE-2023-38408" target="_blank" rel="noopener">CVE-2023-38408</a><br/><a href="https://www.opencve.io/cve/CVE-2023-48795" target="_blank" rel="noopener">CVE-2023-48795</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51384" target="_blank" rel="noopener">CVE-2023-51384</a><br/><a href="https://www.opencve.io/cve/CVE-2023-51385" target="_blank" rel="noopener">CVE-2023-51385</a><br/><a href="https://www.opencve.io/cve/CVE-2024-6387" target="_blank" rel="noopener">CVE-2024-6387</a><br/><a href="https://www.opencve.io/cve/CVE-2025-26465" target="_blank" rel="noopener">CVE-2025-26465</a><br/><a href="https://www.opencve.io/cve/CVE-2025-32728" target="_blank" rel="noopener">CVE-2025-32728</a></td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.254</td>
+          <td>53/tcp</td>
+          <td>domain</td>
+          <td>Unbound</td>
+          <td>1.22.0</td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.254</td>
+          <td>80/tcp</td>
+          <td>http</td>
+          <td>OPNsense</td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+        <tr>
+          <td>192.168.1.254</td>
+          <td>4443/tcp</td>
+          <td>pharos</td>
+          <td></td>
+          <td></td>
+          <td class="cves">-</td>
+        </tr>
+        
+      </tbody>
+    </table>
+
+    <footer>
+      &copy; 2025 — Rapport généré automatiquement par NovaSentinel.
+    </footer>
+  </div>
+</body>
+</html>

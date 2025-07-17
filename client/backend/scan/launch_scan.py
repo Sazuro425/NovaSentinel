@@ -5,17 +5,29 @@ et enrichir chaque service avec les scores CVE via OpenCVE.
 """
 import json
 import sys
+import datetime
+from uuid import uuid4
+from backend.scan.network import (
+    scan_network,
+    scan_with_nmap,
+    get_default_ip,
+    get_interface_by_ip
+)
+from backend.scan.cve import enrich_cves
+from pathlib import Path
+from typing import Any, Dict, Optional
+from backend.utils.myjson import load_scan  # <-- ta nouvelle version
 
-from network import scan_network, scan_with_nmap
-from cve import enrich_cves  # ou le nom de ton module CVE
-
-from dotenv import load_dotenv,find_dotenv
-load_dotenv(find_dotenv(), override=True)
-logger = get_custom_logger("scanner")
-def main():
+def launch_scan():
     # 1) Ping-sweep pour détecter les hôtes actifs
-    default_ip = scan_network.get_default_ip()
-    iface = scan_network.get_interface_by_ip(default_ip)
+    default_ip = get_default_ip()
+    datetime_str = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    scan_id = f"{datetime_str}-{uuid4()}"
+    if not default_ip:
+        print("Aucune IP par défaut détectée. Fin du script.")
+        sys.exit(1)
+
+    iface = get_interface_by_ip(default_ip)
     print(f"Détection d'hôtes actifs sur {default_ip}/24 via interface {iface}...")
     up_hosts = scan_network(f"{default_ip}/24", iface)
 
@@ -30,16 +42,15 @@ def main():
     # 3) Enrichissement des services avec CVE
     print("Enrichissement CVE des services...")
     for host_entry in nmap_results:
-        for service in host_entry["services"]:
+        for service in host_entry.get("services", []):
             enrich_cves(service)
 
     # 4) Exporter les résultats combinés
-    output_file = "scan_enriched_results.json"
+    output_file = "reports/{scan_id}.json"
     with open(output_file, "w") as f:
         json.dump(nmap_results, f, indent=2, ensure_ascii=False)
-
-    print(f"Résultats enrichis enregistrés dans {output_file}")
-
+    return output_file
 
 if __name__ == "__main__":
-    main()
+    launch_scan()
+

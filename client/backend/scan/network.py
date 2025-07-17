@@ -20,14 +20,15 @@ import time
 from multiprocessing.dummy import Pool as ThreadPool
 from pathlib import Path
 from typing import Dict, List
-
+import re
 import dns.resolver
 import netifaces
 import nmap
 from dotenv import load_dotenv, find_dotenv
-
+from backend.utils.my_report import generate_html_report
 from backend.utils.mylog import get_custom_logger
-from .cve import enrich_cves
+from backend.scan.cve import enrich_cves, format_cve_display
+import json
 # ────────────────────────────────────────────────
 # Chargement .env et logger
 # ────────────────────────────────────────────────
@@ -37,7 +38,7 @@ logger = get_custom_logger("scanner")
 # ────────────────────────────────────────────────
 # Fonctions d’environnement local
 # ────────────────────────────────────────────────
-
+HTML_OUTPUT = os.getenv("HTML_OUTPUT_PATH", "network_report.html")
 def get_default_ip() -> str:
     """Adresse IP locale utilisée pour joindre Internet (méthode UDP)."""
     try:
@@ -143,9 +144,11 @@ def scan_with_nmap(hosts: List[str]) -> List[Dict]:
         for proto in nm[host].all_protocols():
             for port in sorted(nm[host][proto]):
                 serv = nm[host][proto][port]
-                cves = [line.split()[0] for line in serv.get("script", {})
-                        .get("vulners", "").splitlines()
-                        if line.startswith("CVE-")]
+                raw = serv.get("script", {}).get("vulners", "")
+                logger.debug("Raw NSE vulners output for %s:%s → %r", host, port, raw)
+                # Extrait toutes les occurrences de CVE-YYYY-NNNN dans la sortie
+                cves = re.findall(r"CVE-\d{4}-\d+", raw)
+                # print(cves)
 
                 service = {
                     "port": f"{port}/{proto}",
@@ -163,8 +166,28 @@ def scan_with_nmap(hosts: List[str]) -> List[Dict]:
     logger.info("[scan_with_nmap] Completed. %d hosts detailed", len(results))
     return results
 
+def reverse_dns(ip: str, nameservers: list[str] | None = None, timeout: float = 2.0) -> str:
+    """
+    Renvoie le nom DNS (PTR) de l’IP ou '' si introuvable.
+    nameservers : liste d’IP DNS à utiliser (sinon ceux du système).
+    """
+    try:
+        ptr = dns.reversename.from_address(ip)           # 106.1.168.192.in-addr.arpa
+        res = dns.resolver.Resolver()
+        if nameservers:
+            res.nameservers = nameservers
+        res.lifetime = timeout
+        answer = res.resolve(ptr, 'PTR')
+        return str(answer[0]).rstrip('.')
+    except (dns.resolver.NXDOMAIN,
+            dns.resolver.NoAnswer,
+            dns.resolver.NoNameservers,
+            dns.exception.Timeout,
+            Exception):
+        return ""
 
-if __name__ == "__main__":
+
+def test():
     # Exécution de test rapide
     logger.info("Default IP: %s", get_default_ip())
     iface = get_interface_by_ip(get_default_ip())
@@ -182,3 +205,56 @@ if __name__ == "__main__":
         logger.info("Nmap results: %s", nmap_results)
     else:
         logger.warning("No active hosts found for Nmap scan.")
+
+if __name__ == "__main__":
+    logger.info("=== Démarrage Network Tool ===")
+
+    # 0. Infos réseau
+    ip = get_default_ip()
+    iface = get_interface_by_ip(ip)
+    gateway = get_gateway()
+    dns_list = get_dns_servers()
+    dhcp_server = get_dhcp_server_systemd()
+    logger.info(f"[main] Config réseau -> IP: {ip}, IFACE: {iface}, GW: {gateway}")
+    
+    # 1. Ping sweep
+    hosts_up = scan_network(ip, iface)
+
+    hosts_details = [{
+        "ip":  h,
+        "dns": reverse_dns(h, dns_list) or "-"
+    } for h in hosts_up]
+
+    # 2. Scan Nmap multi-hôtes
+    nmap_results = scan_with_nmap(hosts_up)
+
+    # 3. Logs bruts pour vérification
+    logger.info("=== Résultats Nmap bruts ===")
+    logger.info(json.dumps(nmap_results, indent=2))
+
+    # 4. Préparation des données
+    # 4. Préparation des données pour le rapport -------------------------------
+    services_flat = []
+    for host in nmap_results:
+        for s in host["services"]:
+            services_flat.append({
+                "host":          host["ip"],
+                "port":          s["port"],
+                "service":       s["service"],
+                "product":       s["product"] or "",
+                "version":       s["version"] or "",
+                "cves":          s["cves"],
+                "cves_display":  format_cve_display(s["cves"]) if s["cves"] else "-"
+            })
+
+    data = {
+        "interface":     iface,
+        "ip_address":    ip,
+        "gateway":       gateway,
+        "dhcp":          dhcp_server,
+        "active_hosts":  hosts_details,
+        "services":      services_flat
+    }
+
+    generate_html_report(data, HTML_OUTPUT)
+    logger.info("=== Fin Network Tool ===")
